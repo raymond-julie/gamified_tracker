@@ -25,30 +25,30 @@ public class AuthService {
 
     public String register(RegisterRequest request) {
 
-        User user = new User();
-        user.setFirstName(request.getFirstName());
-        user.setLastName(request.getLastName());
-        user.setEmail(request.getEmail());
+        var user = new User();
+        user.setFirstName(request.firstName());
+        user.setLastName(request.lastName());
+        user.setEmail(request.email());
 
         // Encrypt password before saving
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setPassword(passwordEncoder.encode(request.password()));
 
         user.setRole(Role.USER);
         userRepository.save(user);
 
-        return jwtUtil.generateToken(request.getEmail());
+        return jwtUtil.generateToken(request.email());
     }
 
     public String login(LoginRequest req) {
 
-        User user = userRepository.findByEmail(req.getEmail())
+        var user = userRepository.findByEmail(req.email())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         // Compare encrypted password
-        if (!passwordEncoder.matches(req.getPassword(), user.getPassword())) {
+        if (!passwordEncoder.matches(req.password(), user.getPassword())) {
             throw new RuntimeException("Invalid credentials");
         }
 
-        return jwtUtil.generateToken(req.getEmail());
+        return jwtUtil.generateToken(req.email());
     }
 }

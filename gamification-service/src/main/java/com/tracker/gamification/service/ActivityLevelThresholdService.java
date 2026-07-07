@@ -9,7 +9,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.Optional;
 
 @Service
 public class ActivityLevelThresholdService {
@@ -18,14 +17,14 @@ public class ActivityLevelThresholdService {
     public ActivityLevelThresholdRepository activityLevelThresholdRepository;
 
     public ActivityLevelThresholdDto getActivityLevelThresholdById(ActivityLevelThresholdDto activityLevelThresholdDto) {
-        Optional<ActivityLevelThreshold> activityLevelThreshold = activityLevelThresholdRepository.findById(mapToEntity(activityLevelThresholdDto).getId());
+        var activityLevelThreshold = activityLevelThresholdRepository.findById(mapToEntity(activityLevelThresholdDto).getId());
         if (activityLevelThreshold.isPresent()) {
             return mapToDto(activityLevelThreshold.get());
         } else throw new NoSuchElementException("ActivityLevelThreshold not found");
     }
 
     public ActivityLevelThresholdDto saveActivityLevelThreshold(ActivityLevelThresholdDto activityLevelThresholdDto) {
-        ActivityLevelThreshold activityLevelThreshold = mapToEntity(activityLevelThresholdDto);
+        var activityLevelThreshold = mapToEntity(activityLevelThresholdDto);
         activityLevelThresholdRepository.save(activityLevelThreshold);
         return mapToDto(activityLevelThreshold);
     }
@@ -35,21 +34,21 @@ public class ActivityLevelThresholdService {
         return ActivityLevelThreshold.builder()
                 .id(
                         ActivityLevelThresholdId.builder()
-                                .activityId(dto.getActivityId())
-                                .level(dto.getLevel())
+                                .activityId(dto.activityId())
+                                .level(dto.level())
                                 .build()
                 )
-                .xpRequired(dto.getXpRequired())
+                .xpRequired(dto.xpRequired())
                 .build();
     }
 
     public ActivityLevelThresholdDto mapToDto(ActivityLevelThreshold entity) {
 
-        return ActivityLevelThresholdDto.builder()
-                .activityId(entity.getId().getActivityId())
-                .level(entity.getId().getLevel())
-                .xpRequired(entity.getXpRequired())
-                .build();
+        return new ActivityLevelThresholdDto(
+                entity.getId().getActivityId(),
+                entity.getId().getLevel(),
+                entity.getXpRequired()
+        );
     }
 
     public List<ActivityLevelThresholdDto> getAllActivityLevelThreshold() {

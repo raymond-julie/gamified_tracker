@@ -1,17 +1,7 @@
 package com.tracker.gamification.dto;
 
-import lombok.*;
-
-@NoArgsConstructor
-@Data
-@AllArgsConstructor
-@Getter
-@Setter
-@ToString
-@EqualsAndHashCode
-@Builder
-public class LevelTrackerRequestDTO {
-    Long userId;
-    Long activityId;
-    double xp;
+public record LevelTrackerRequestDTO(Long userId, Long activityId, double xp) {
+    public LevelTrackerRequestDTO {
+        if (xp < 0) throw new IllegalArgumentException("xp cannot be negative");
+    }
 }

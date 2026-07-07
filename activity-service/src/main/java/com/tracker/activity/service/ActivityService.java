@@ -19,27 +19,20 @@ public class ActivityService {
     ActivityRepository activityRepository;
 
     public ResponseEntity<ActivityResponseRecord> getActivity(String name) {
-        Activity activity = activityRepository.findByName(name)
+        var activity = activityRepository.findByName(name)
                 .orElseThrow(() -> new ActivityNotFoundException("Activity not found: " + name));
 
         return ResponseEntity.ok(mapToResponse(activity));
     }
 
     public ResponseEntity<ActivityResponseRecord> addAcitvityEntity(AddActivityRequestRecord request) {
-        Activity activity = mapToActivity(request);
+        var activity = mapToActivity(request);
 
-        Activity savedActivity = activityRepository.save(activity);
+        var savedActivity = activityRepository.save(activity);
 
         return ResponseEntity.ok(mapToResponse(savedActivity));
     }
 
-    //    private Activity mapToActivity(AddActivityRequest activityRequest) {
-//        return Activity.builder().name(activityRequest.getName()).category(activityRequest.getCategory()).description(activityRequest.getDescription()).xpMultiplier(activityRequest.getXpMultiplier()).active(activityRequest.isActive()).createdAt(LocalDateTime.now()).build();
-//    }
-//
-//    private ActivityResponse mapToResponse(Activity activity) {
-//        return ActivityResponse.builder().name(activity.getName()).category(activity.getCategory()).xpMultiplier(activity.getXpMultiplier()).description(activity.getDescription()).createdAt(activity.getCreatedAt()).build();
-//    }
     private Activity mapToActivity(AddActivityRequestRecord activityRequest) {
         return Activity.builder()
                 .name(activityRequest.name())
@@ -63,7 +56,7 @@ public class ActivityService {
     }
 
     public ResponseEntity<List<ActivityResponseRecord>> getAllActivities() {
-        List<ActivityResponseRecord> activities = activityRepository.findAll()
+        var activities = activityRepository.findAll()
                 .stream()
                 .map(this::mapToResponse)
                 .toList();

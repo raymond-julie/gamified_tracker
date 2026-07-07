@@ -1,7 +1,7 @@
 package com.tracker.gamification.service;
 
-import com.tracker.gamification.dao.ActivityLevelThreshold;
 import com.tracker.gamification.dao.LevelTracker;
+import com.tracker.gamification.domain.LevelOutcome;
 import com.tracker.gamification.dto.LevelTrackerDto;
 import com.tracker.gamification.dto.LevelTrackerRequestDTO;
 import com.tracker.gamification.repository.ActivityLevelThresholdRepository;
@@ -45,7 +45,7 @@ public class LevelTrackerService {
     }
 
     public LevelTrackerDto findById(Long id) {
-        LevelTracker levelTracker = levelTrackerRepository.findById(id)
+        var levelTracker = levelTrackerRepository.findById(id)
                 .orElseThrow(() ->
                         new NoSuchElementException(
                                 "LevelTracker with id: " + id + " not found"
@@ -58,24 +58,24 @@ public class LevelTrackerService {
     @Transactional
     public LevelTrackerDto save(LevelTrackerRequestDTO dto) {
 
-        LevelTracker levelTracker = levelTrackerRepository
+        var levelTracker = levelTrackerRepository
                 .findByUserIdAndActivityId(
-                        dto.getUserId(),
-                        dto.getActivityId()
+                        dto.userId(),
+                        dto.activityId()
                 )
                 .map(existingTracker -> {
                     existingTracker.setTotalXp(
-                            existingTracker.getTotalXp() + dto.getXp()
+                            existingTracker.getTotalXp() + dto.xp()
                     );
                     return existingTracker;
                 })
                 .orElseGet(() -> LevelTracker.builder()
-                        .userId(dto.getUserId())
-                        .activityId(dto.getActivityId())
-                        .totalXp(dto.getXp())
+                        .userId(dto.userId())
+                        .activityId(dto.activityId())
+                        .totalXp(dto.xp())
                         .build());
 
-        List<ActivityLevelThreshold> reachedLevels =
+        var reachedLevels =
                 activityLevelThresholdRepository
                         .findReachedLevels(
                                 levelTracker.getActivityId(),
@@ -83,50 +83,45 @@ public class LevelTrackerService {
                                 PageRequest.of(0, 1)
                         );
 
-        if (!reachedLevels.isEmpty()) {
-            updateLevelProgress(levelTracker, reachedLevels.get(0));
-        } else {
-            levelTracker.setLevel(1);
-            levelTracker.setCurrentLevelXp(levelTracker.getTotalXp());
+        LevelOutcome outcome = reachedLevels.isEmpty()
+                ? new LevelOutcome.InProgress(1, levelTracker.getTotalXp())
+                : new LevelOutcome.LeveledUp(
+                        reachedLevels.get(0).getId().getLevel(),
+                        levelTracker.getTotalXp() - reachedLevels.get(0).getXpRequired()
+                );
+
+        if (outcome instanceof LevelOutcome.LeveledUp up) {
+            levelTracker.setLevel(up.level());
+            levelTracker.setCurrentLevelXp(up.currentLevelXp());
+        } else if (outcome instanceof LevelOutcome.InProgress ip) {
+            levelTracker.setLevel(ip.level());
+            levelTracker.setCurrentLevelXp(ip.currentLevelXp());
         }
 
-        LevelTracker savedLevelTracker =
+        var savedLevelTracker =
                 levelTrackerRepository.save(levelTracker);
 
         return mapToDto(savedLevelTracker);
     }
 
-    private void updateLevelProgress(
-            LevelTracker levelTracker,
-            ActivityLevelThreshold threshold
-    ) {
-
-        levelTracker.setLevel(
-                threshold.getId().getLevel()
-        );
-
-        levelTracker.setCurrentLevelXp(
-                levelTracker.getTotalXp() - threshold.getXpRequired()
-        );
-    }
-
     private LevelTrackerDto mapToDto(LevelTracker entity) {
-
-        return LevelTrackerDto.builder()
-                .userId(entity.getUserId())
-                .activityId(entity.getActivityId())
-                .level(entity.getLevel())
-                .currentLevelXp(entity.getCurrentLevelXp())
-                .build();
+        // totalXp intentionally not carried over here — matches pre-existing mapping behavior
+        return new LevelTrackerDto(
+                entity.getUserId(),
+                entity.getActivityId(),
+                entity.getLevel(),
+                0.0,
+                entity.getCurrentLevelXp()
+        );
     }
 
     private LevelTracker mapToEntity(LevelTrackerDto dto) {
 
         return LevelTracker.builder()
-                .userId(dto.getUserId())
-                .activityId(dto.getActivityId())
-                .level(dto.getLevel())
-                .currentLevelXp(dto.getCurrentLevelXp())
+                .userId(dto.userId())
+                .activityId(dto.activityId())
+                .level(dto.level())
+                .currentLevelXp(dto.currentLevelXp())
                 .build();
     }
 }
