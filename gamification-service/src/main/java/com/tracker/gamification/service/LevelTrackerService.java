@@ -1,16 +1,19 @@
 package com.tracker.gamification.service;
 
 import com.tracker.gamification.dao.LevelTracker;
+import com.tracker.gamification.dao.LevelTrackerArchive;
 import com.tracker.gamification.domain.LevelOutcome;
 import com.tracker.gamification.dto.LevelTrackerDto;
 import com.tracker.gamification.dto.LevelTrackerRequestDTO;
 import com.tracker.gamification.repository.ActivityLevelThresholdRepository;
+import com.tracker.gamification.repository.LevelTrackerArchiveRepository;
 import com.tracker.gamification.repository.LevelTrackerRepository;
-import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -18,6 +21,8 @@ import java.util.NoSuchElementException;
 @AllArgsConstructor
 @Transactional
 public class LevelTrackerService {
+
+    private final LevelTrackerArchiveRepository levelTrackerArchiveRepository;
 
     private final LevelTrackerRepository levelTrackerRepository;
 
@@ -55,26 +60,37 @@ public class LevelTrackerService {
         return mapToDto(levelTracker);
     }
 
-    @Transactional
     public LevelTrackerDto save(LevelTrackerRequestDTO dto) {
+        boolean created = levelTrackerRepository.insertIfAbsent(dto.userId(), dto.activityId()) == 1;
 
-        var levelTracker = levelTrackerRepository
-                .findByUserIdAndActivityId(
-                        dto.userId(),
-                        dto.activityId()
-                )
-                .map(existingTracker -> {
-                    existingTracker.setTotalXp(
-                            existingTracker.getTotalXp() + dto.xp()
-                    );
-                    return existingTracker;
-                })
-                .orElseGet(() -> LevelTracker.builder()
-                        .userId(dto.userId())
-                        .activityId(dto.activityId())
-                        .totalXp(dto.xp())
-                        .build());
+        var tracker = levelTrackerRepository
+                .findByUserIdAndActivityIdForUpdate(dto.userId(), dto.activityId())
+                .orElseThrow(); // guaranteed to exist; row is now locked for the rest of this transaction
 
+        if (!created) {
+            archivePreviousState(tracker);
+        }
+
+        tracker.setTotalXp(tracker.getTotalXp() + dto.xp());
+        applyLevel(tracker);
+
+        return mapToDto(levelTrackerRepository.save(tracker));
+    }
+
+    private void archivePreviousState(LevelTracker tracker) {
+        levelTrackerArchiveRepository.save(
+                LevelTrackerArchive.builder()
+                        .userId(tracker.getUserId())
+                        .activityId(tracker.getActivityId())
+                        .level(tracker.getLevel())
+                        .totalXp(tracker.getTotalXp())
+                        .currentLevelXp(tracker.getCurrentLevelXp())
+                        .archivedAt(LocalDateTime.now())
+                        .build()
+        );
+    }
+
+    private void applyLevel(LevelTracker levelTracker) {
         var reachedLevels =
                 activityLevelThresholdRepository
                         .findReachedLevels(
@@ -97,11 +113,6 @@ public class LevelTrackerService {
             levelTracker.setLevel(ip.level());
             levelTracker.setCurrentLevelXp(ip.currentLevelXp());
         }
-
-        var savedLevelTracker =
-                levelTrackerRepository.save(levelTracker);
-
-        return mapToDto(savedLevelTracker);
     }
 
     private LevelTrackerDto mapToDto(LevelTracker entity) {
@@ -112,15 +123,5 @@ public class LevelTrackerService {
                 entity.getTotalXp(),
                 entity.getCurrentLevelXp()
         );
-    }
-
-    private LevelTracker mapToEntity(LevelTrackerDto dto) {
-
-        return LevelTracker.builder()
-                .userId(dto.userId())
-                .activityId(dto.activityId())
-                .level(dto.level())
-                .currentLevelXp(dto.currentLevelXp())
-                .build();
     }
 }
