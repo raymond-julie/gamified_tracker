@@ -1,6 +1,5 @@
 package com.tracker.gamification.dao;
 
-import com.tracker.gamification.misc.ActivityLevelThresholdId;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;

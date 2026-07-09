@@ -2,7 +2,7 @@ package com.tracker.gamification.controller;
 
 import com.tracker.gamification.dto.LevelTrackerDto;
 import com.tracker.gamification.dto.LevelTrackerRequestDTO;
-import com.tracker.gamification.service.LevelTrackerService;
+import com.tracker.gamification.service.impl.LevelTrackerServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,7 +14,7 @@ import java.util.List;
 public class LevelTrackerController {
 
     @Autowired
-    private LevelTrackerService levelTrackerService;
+    private LevelTrackerServiceImpl levelTrackerService;
 
     @GetMapping
     public ResponseEntity<List<LevelTrackerDto>> getAllLevelTracker() {

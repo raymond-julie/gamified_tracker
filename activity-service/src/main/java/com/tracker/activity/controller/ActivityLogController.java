@@ -1,9 +1,8 @@
 package com.tracker.activity.controller;
 
 import com.tracker.activity.dto.ActivityLogResponse;
-import com.tracker.activity.dto.AddActivityLogRequest;
+import com.tracker.activity.dto.ActivityLogRequest;
 import com.tracker.activity.service.ActivityLogService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,8 +12,11 @@ import java.util.List;
 @RequestMapping("/activitylog")
 public class ActivityLogController {
 
-    @Autowired
-    ActivityLogService activityLogService;
+    private final ActivityLogService activityLogService;
+
+    public ActivityLogController(ActivityLogService activityLogService) {
+        this.activityLogService = activityLogService;
+    }
 
     @GetMapping("/{id}")
     public ResponseEntity<ActivityLogResponse> getActivityLog(@PathVariable("id") Long id) {
@@ -22,8 +24,8 @@ public class ActivityLogController {
     }
 
     @PostMapping("/")
-    public ResponseEntity<ActivityLogResponse> addActivityLog(@RequestBody AddActivityLogRequest addActivityLogRequest) {
-        return activityLogService.addActivityLogResponseResponseEntity(addActivityLogRequest);
+    public ResponseEntity<ActivityLogResponse> addActivityLog(@RequestBody ActivityLogRequest activityLogRequest) {
+        return activityLogService.addActivityLogResponseResponseEntity(activityLogRequest);
     }
 
     @GetMapping("/user/{id}")

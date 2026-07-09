@@ -2,7 +2,7 @@ package com.tracker.activity.dto;
 
 import java.time.LocalDateTime;
 
-public record AddActivityLogRequest(
+public record ActivityLogRequest(
         Long userId,
         String activityName,
         LocalDateTime startTime,

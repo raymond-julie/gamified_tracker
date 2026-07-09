@@ -4,7 +4,7 @@ import com.tracker.activity.dao.Category;
 
 import java.time.LocalDateTime;
 
-public record AddActivityRequestRecord(
+public record ActivityRequestRecord(
         String name,
         Category category,
         double xpMultiplier,

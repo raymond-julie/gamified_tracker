@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
-public class GatewayExceptionHandler {
+public class GatewayExceptionHandler extends RuntimeException{
 
     @ExceptionHandler(FeignException.NotFound.class)
     public ProblemDetail handleNotFound(FeignException.NotFound ex) {

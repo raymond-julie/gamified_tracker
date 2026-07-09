@@ -1,4 +1,4 @@
-package com.tracker.gamification.misc;
+package com.tracker.gamification.dao;
 
 import jakarta.persistence.Embeddable;
 import lombok.*;

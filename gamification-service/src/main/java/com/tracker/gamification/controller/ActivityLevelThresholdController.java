@@ -1,7 +1,7 @@
 package com.tracker.gamification.controller;
 
 import com.tracker.gamification.dto.ActivityLevelThresholdDto;
-import com.tracker.gamification.service.ActivityLevelThresholdService;
+import com.tracker.gamification.service.impl.ActivityLevelThresholdServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -12,7 +12,7 @@ import java.util.List;
 @RequestMapping("/threshold")
 public class ActivityLevelThresholdController {
     @Autowired
-    private ActivityLevelThresholdService activityLevelThresholdService;
+    private ActivityLevelThresholdServiceImpl activityLevelThresholdService;
 
     @GetMapping
     public ResponseEntity<List<ActivityLevelThresholdDto>> getActivityLevelThreshold() {
