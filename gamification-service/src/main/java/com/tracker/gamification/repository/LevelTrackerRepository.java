@@ -22,6 +22,7 @@ public interface LevelTrackerRepository extends JpaRepository<LevelTracker, Long
     Optional<LevelTracker> findByUserIdAndActivityIdForUpdate(@Param("userId") Long userId,
                                                                 @Param("activityId") Long activityId);
 
+
     List<LevelTracker> findAllByUserId(Long userId);
 
     List<LevelTracker> findAllByActivityId(Long activityId);
