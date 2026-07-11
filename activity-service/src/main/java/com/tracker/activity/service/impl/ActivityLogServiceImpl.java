@@ -39,16 +39,17 @@ public class ActivityLogServiceImpl implements ActivityLogService {
     }
 
     @Override
-    public ResponseEntity<ActivityLogResponse> addActivityLogResponseResponseEntity(ActivityLogRequest activityLogRequest) {
-        var activityLog = mapToActivityLog(activityLogRequest);
+    public ResponseEntity<ActivityLogResponse> addActivityLogResponseResponseEntity(Long userId, ActivityLogRequest activityLogRequest) {
+        var activityLog = mapToActivityLog(userId, activityLogRequest);
         activityLog.setDurationMinutes(Duration.between(activityLog.getStartTime(), activityLog.getEndTime()).toMinutes());
+        activityLog.setUserId(userId);
 
         var random = RandomGenerator.getDefault();
         double multiplier = activityLog.getActivity().getXpMultiplier();
         double bonus = random.nextDouble() < 0.2 ? random.nextDouble(1.1, 1.5) : 1.0; // 20% chance of a bonus roll
         activityLog.setXpEarned(activityLog.getDurationMinutes() * multiplier * bonus);
 
-        gamificationClient.createLevelTracker(new LevelTrackerRequestDTO(activityLog.getUserId(), activityLog.getActivity().getId(), activityLog.getXpEarned()));
+        gamificationClient.createLevelTracker(userId, new LevelTrackerRequestDTO(activityLog.getActivity().getId(), activityLog.getXpEarned()));
 
         activityLogRepository.save(activityLog);
 
@@ -63,9 +64,9 @@ public class ActivityLogServiceImpl implements ActivityLogService {
         return ResponseEntity.ok(activityLogResponses);
     }
 
-    private ActivityLog mapToActivityLog(ActivityLogRequest activityLogRequest) {
+    private ActivityLog mapToActivityLog(Long userId, ActivityLogRequest activityLogRequest) {
         return ActivityLog.builder()
-                .userId(activityLogRequest.userId())
+                .userId(userId)
                 .activity(activityRepository.findByName(activityLogRequest.activityName())
                         .orElseThrow(() -> new ActivityNotFoundException("Activity not found: " + activityLogRequest.activityName())))
                 .startTime(activityLogRequest.startTime())

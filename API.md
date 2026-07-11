@@ -4,6 +4,20 @@ This document covers every REST endpoint exposed by the three services: **API Ga
 
 In normal use, clients talk **only to the API Gateway**. The Activity Service and Gamification Service endpoints are documented separately below because they're directly reachable in this dev setup (no network isolation yet) and are useful for debugging service-to-service calls.
 
+The Gateway is a real **Spring Cloud Gateway (Server MVC)** — requests are routed declaratively (`lb://activity-service`, `lb://gamification-service` via Eureka), not hand-proxied through controllers. Downstream responses, including error bodies, pass through **unchanged** (see [Error Response Format](#error-response-format)).
+
+## Interactive API Docs (Swagger)
+
+Each service exposes its own OpenAPI UI directly on its own port — these are **not** routed through the Gateway (`/swagger-ui.html` isn't one of the proxied paths):
+
+| Service | Swagger UI | Raw OpenAPI JSON |
+|---|---|---|
+| API Gateway | http://localhost:8080/swagger-ui.html | http://localhost:8080/v3/api-docs |
+| Activity Service | http://localhost:8081/swagger-ui.html | http://localhost:8081/v3/api-docs |
+| Gamification Service | http://localhost:8082/swagger-ui.html | http://localhost:8082/v3/api-docs |
+
+The Gateway's own `SecurityConfig` `permitAll`s `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs/**`, and `/swagger-resources/**`, so its Swagger UI works without a JWT. Activity Service and Gamification Service have no Spring Security dependency at all, so theirs are open by default too.
+
 ---
 
 ## Authentication
@@ -16,7 +30,7 @@ Authorization: Bearer <token>
 
 Tokens are signed HS256 JWTs and carry the user's `role` as a claim. The signing secret and expiry both come from config (`jwt.secret` / `jwt.expiration`, see `.env` / `JWT_SECRET` / `JWT_EXPIRATION`).
 
-Method security is enabled, and `JwtFilter` grants an authority derived from the token's `role` claim (`ROLE_USER` / `ROLE_ADMIN`), so `@PreAuthorize("hasRole('ADMIN')")` (e.g. `POST /api/activity`) is properly enforced: an `ADMIN` token succeeds, any other role gets `403`.
+`JwtFilter` grants an authority derived from the token's `role` claim (`ROLE_USER` / `ROLE_ADMIN`). Admin-only routes are enforced **at the URL level** in `SecurityConfig` (`.requestMatchers(HttpMethod.POST, "/api/activity", "/api/activity/").hasRole("ADMIN")`) rather than with a controller-level `@PreAuthorize` — there's no longer a controller to annotate, since routing is now declarative. An `ADMIN` token succeeds on `POST /api/activity`; any other role gets `403`.
 
 ---
 
@@ -141,6 +155,36 @@ List all activity logs for a user. Requires auth.
 
 ---
 
+### Level Tracker
+
+**New:** previously only reachable directly on the Gamification Service; now routed through the Gateway too.
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/level` | authenticated | list every level-tracker row (all users, all activities) |
+| `GET` | `/api/level/{id}` | authenticated | one row by internal id (`404` if missing) |
+| `POST` | `/api/level` | authenticated | create-or-update XP for a user+activity, recalculating level. Normally called internally by the Activity Service after each activity log, not directly by clients |
+| `GET` | `/api/level/user/{userId}` | authenticated | all rows for a given user |
+| `GET` | `/api/level/activity/{activityId}` | authenticated | all rows for a given activity |
+
+Request/response bodies mirror the Gamification Service (`userId`, `activityId`, `level`, `totalXp`, `currentLevelXp`) — see [Gamification Service § Level Tracker](#level-tracker-1) below.
+
+---
+
+### Activity Level Threshold
+
+**New:** previously only reachable directly on the Gamification Service; now routed through the Gateway too. Defines the XP required to reach each level, per activity.
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/threshold` | authenticated | list all thresholds |
+| `POST` | `/api/threshold/activity` | authenticated | look up one threshold by composite key (a read, despite `POST`) |
+| `POST` | `/api/threshold` | authenticated | create (or overwrite) a threshold |
+
+Request/response bodies mirror the Gamification Service (`activityId`, `level`, `xpRequired`) — see [Gamification Service § Activity Level Threshold](#activity-level-threshold-1) below.
+
+---
+
 ### Misc
 
 #### `GET /api/hello`
@@ -258,6 +302,8 @@ Most `404` responses across all three services use Spring's RFC 7807 `ProblemDet
 ```
 
 `401` (`POST /auth/login` failures) and `400` (validation failures on `POST /level`) also use `ProblemDetail`. Any route that fails to match at all (e.g. a typo'd path) still falls back to Spring's default whitelabel error body, since that never reaches application code.
+
+**Through the Gateway, downstream error bodies pass through byte-for-byte unchanged** — including the `instance` field, which still shows the *downstream* service's own path (e.g. `/level/999999`), not the Gateway's `/api/level/999999`. This is because routing is a real reverse proxy (Spring Cloud Gateway), not a hand-rolled wrapper that re-serializes responses. Verified: `GET /api/activity/does-not-exist` and `GET /api/level/999999` both return the exact same `ProblemDetail` body their respective service returns directly.
 
 ---
 

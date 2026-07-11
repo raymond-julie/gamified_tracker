@@ -6,6 +6,7 @@ import com.tracker.activity.dto.LevelTrackerRequestDTO;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 
 @FeignClient(name = "gamification-service")
 public interface GamificationClient {
@@ -17,7 +18,7 @@ public interface GamificationClient {
 //    LevelTrackerDto getLevelTrackerById(@PathVariable("id") Long id);
 
     @PostMapping("/level")
-    LevelTrackerDto createLevelTracker(@RequestBody LevelTrackerRequestDTO request);
+    LevelTrackerDto createLevelTracker(@RequestHeader("userId") Long userId, @RequestBody LevelTrackerRequestDTO request);
 
 //    @GetMapping("/level/user/{userId}")
 //    List<LevelTrackerDto> getLevelTrackerByUserId(

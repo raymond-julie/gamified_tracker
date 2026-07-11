@@ -5,6 +5,7 @@ import com.tracker.gateway.user.Role;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -50,15 +51,23 @@ public class JwtFilter extends OncePerRequestFilter {
         }
 
         String token = header.substring(7);
-
+         HttpServletRequestWrapper requestWrapper ;
         try {
             var claims = jwtUtil.validateToken(token);
             String email = claims.getSubject();
             String roleClaim = claims.get("role", String.class);
             Role role = roleClaim != null ? Role.valueOf(roleClaim) : Role.USER;
-
+            Long userId = claims.get("userId", Long.class);
             var authorities = List.of(new SimpleGrantedAuthority(role.authority()));
-
+            requestWrapper = new HttpServletRequestWrapper(request) {
+                @Override
+                public String getHeader(String name) {
+                    if ("userId".equals(name)) {
+                        return userId != null ? userId.toString() : null;
+                    }
+                    return super.getHeader(name);
+                }
+            };
             UsernamePasswordAuthenticationToken auth =
                     new UsernamePasswordAuthenticationToken(email, null, authorities);
 
@@ -69,6 +78,6 @@ public class JwtFilter extends OncePerRequestFilter {
             return;
         }
 
-        chain.doFilter(request, response);
+        chain.doFilter(requestWrapper, response);
     }
 }
