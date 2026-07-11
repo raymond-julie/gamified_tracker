@@ -46,6 +46,10 @@ management:
       exposure:
         include: health,info
 
+    health:
+      probes:
+        enabled: true
+
 # Swagger/OpenAPI Configuration
 springdoc:
   swagger-ui:

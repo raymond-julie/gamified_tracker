@@ -33,7 +33,7 @@ services:
       postgres:
         condition: service_healthy
       eureka-server:
-        condition: service_started
+        condition: service_healthy
     env_file: .env
 
   activity:
@@ -45,9 +45,9 @@ services:
       postgres:
         condition: service_healthy
       eureka-server:
-        condition: service_started
+        condition: service_healthy
       gateway:
-        condition: service_started
+        condition: service_healthy
     env_file: .env
 
   gamification:
@@ -59,11 +59,11 @@ services:
       postgres:
         condition: service_healthy
       eureka-server:
-        condition: service_started
+        condition: service_healthy
       activity:
-        condition: service_started
+        condition: service_healthy
       gateway:
-        condition: service_started
+        condition: service_healthy
     env_file: .env
 
 volumes:
