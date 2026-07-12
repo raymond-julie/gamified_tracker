@@ -15,6 +15,7 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -98,12 +99,29 @@ public class LevelTrackerControllerTest {
                 100.0
         );
 
-        when(levelTrackerService.save(any(LevelTrackerRequestDTO.class)))
+        // IDOR fix: userId now comes from the "userId" request header, not the body.
+        // when(levelTrackerService.save(any(LevelTrackerRequestDTO.class)))
+        //         .thenReturn(response);
+        //
+        // String json = "{\"userId\":1,\"activityId\":1,\"xp\":100.0}";
+        //
+        // mockMvc.perform(post("/level")
+        //         .contentType(MediaType.APPLICATION_JSON)
+        //         .accept(MediaType.APPLICATION_JSON)
+        //         .content(json))
+        //         .andExpect(status().isOk())
+        //         .andExpect(jsonPath("$.userId").value(1L))
+        //         .andExpect(jsonPath("$.activityId").value(1L))
+        //         .andExpect(jsonPath("$.totalXp").value(100.0));
+        //
+        // verify(levelTrackerService).save(any(LevelTrackerRequestDTO.class));
+        when(levelTrackerService.save(anyLong(), any(LevelTrackerRequestDTO.class)))
                 .thenReturn(response);
 
-        String json = "{\"userId\":1,\"activityId\":1,\"xp\":100.0}";
+        String json = "{\"activityId\":1,\"xp\":100.0}";
 
         mockMvc.perform(post("/level")
+                .header("userId", 1L)
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON)
                 .content(json))
@@ -112,7 +130,7 @@ public class LevelTrackerControllerTest {
                 .andExpect(jsonPath("$.activityId").value(1L))
                 .andExpect(jsonPath("$.totalXp").value(100.0));
 
-        verify(levelTrackerService).save(any(LevelTrackerRequestDTO.class));
+        verify(levelTrackerService).save(eq(1L), any(LevelTrackerRequestDTO.class));
     }
 
     @Test

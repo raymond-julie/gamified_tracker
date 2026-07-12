@@ -82,8 +82,18 @@ public class ActivityLogServiceImplTest {
     @DisplayName("addActivityLogResponseResponseEntity saves, notifies gamification and returns response")
     void testAddActivityLogResponseResponseEntity() {
         LocalDateTime now = LocalDateTime.now();
+        Long userId = 2L;
+        // IDOR fix: userId is passed explicitly (from the trusted header), not on the
+        // request body, and is forwarded explicitly to the Feign call too.
+        // ActivityLogRequest request = new ActivityLogRequest(
+        //         2L,
+        //         "Run",
+        //         now,
+        //         now.plusMinutes(30),
+        //         "nice",
+        //         now
+        // );
         ActivityLogRequest request = new ActivityLogRequest(
-                2L,
                 "Run",
                 now,
                 now.plusMinutes(30),
@@ -95,9 +105,11 @@ public class ActivityLogServiceImplTest {
 
         when(activityRepository.findByName("Run")).thenReturn(Optional.of(activity));
         when(activityLogRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        when(gamificationClient.createLevelTracker(any())).thenReturn(null);
+        // when(gamificationClient.createLevelTracker(any())).thenReturn(null);
+        when(gamificationClient.createLevelTracker(anyLong(), any())).thenReturn(null);
 
-        ResponseEntity<ActivityLogResponse> resp = activityLogService.addActivityLogResponseResponseEntity(request);
+        // ResponseEntity<ActivityLogResponse> resp = activityLogService.addActivityLogResponseResponseEntity(request);
+        ResponseEntity<ActivityLogResponse> resp = activityLogService.addActivityLogResponseResponseEntity(userId, request);
 
         assertNotNull(resp);
         ActivityLogResponse body = resp.getBody();
@@ -105,11 +117,12 @@ public class ActivityLogServiceImplTest {
         assertEquals(activity.getId(), body.activity().getId());
         assertNotNull(body.xpEarned());
 
+        ArgumentCaptor<Long> userIdCaptor = ArgumentCaptor.forClass(Long.class);
         ArgumentCaptor<LevelTrackerRequestDTO> captor = ArgumentCaptor.forClass(LevelTrackerRequestDTO.class);
-        verify(gamificationClient).createLevelTracker(captor.capture());
+        verify(gamificationClient).createLevelTracker(userIdCaptor.capture(), captor.capture());
 
         LevelTrackerRequestDTO sent = captor.getValue();
-        assertEquals(body.userId(), sent.userId());
+        assertEquals(body.userId(), userIdCaptor.getValue());
         assertEquals(body.activity().getId(), sent.activityId());
         assertEquals(body.xpEarned(), sent.xp(), 1e-6);
     }
@@ -118,8 +131,15 @@ public class ActivityLogServiceImplTest {
     @DisplayName("addActivityLogResponseResponseEntity throws when activity not found")
     void testAddActivityLogResponseResponseEntityActivityMissing() {
         LocalDateTime now = LocalDateTime.now();
+        // ActivityLogRequest request = new ActivityLogRequest(
+        //         2L,
+        //         "Missing",
+        //         now,
+        //         now.plusMinutes(30),
+        //         "notes",
+        //         now
+        // );
         ActivityLogRequest request = new ActivityLogRequest(
-                2L,
                 "Missing",
                 now,
                 now.plusMinutes(30),
@@ -129,7 +149,7 @@ public class ActivityLogServiceImplTest {
 
         when(activityRepository.findByName("Missing")).thenReturn(Optional.empty());
 
-        assertThrows(ActivityNotFoundException.class, () -> activityLogService.addActivityLogResponseResponseEntity(request));
+        assertThrows(ActivityNotFoundException.class, () -> activityLogService.addActivityLogResponseResponseEntity(2L, request));
     }
 
     @Test

@@ -72,8 +72,18 @@ public class ActivityLogControllerTest {
     void testAddActivityLog() {
         //Arrange
         LocalDateTime now = LocalDateTime.now();
+        Long userId = 2L;
+        // IDOR fix: userId no longer lives on the request body; it comes from the
+        // trusted "userId" header instead.
+        // ActivityLogRequest request = new ActivityLogRequest(
+        //         2L,
+        //         "Running",
+        //         now,
+        //         now.plusMinutes(30),
+        //         "Morning run",
+        //         now
+        // );
         ActivityLogRequest request = new ActivityLogRequest(
-                2L,
                 "Running",
                 now,
                 now.plusMinutes(30),
@@ -105,10 +115,12 @@ public class ActivityLogControllerTest {
 
         //Act
         ResponseEntity<ActivityLogResponse> expectedResult = ResponseEntity.ok(response);
-        when(activityLogService.addActivityLogResponseResponseEntity(request)).thenReturn(expectedResult);
+        // when(activityLogService.addActivityLogResponseResponseEntity(request)).thenReturn(expectedResult);
+        when(activityLogService.addActivityLogResponseResponseEntity(userId, request)).thenReturn(expectedResult);
 
         //Assert
-        ResponseEntity<ActivityLogResponse> actualResult = activityLogController.addActivityLog(request);
+        // ResponseEntity<ActivityLogResponse> actualResult = activityLogController.addActivityLog(request);
+        ResponseEntity<ActivityLogResponse> actualResult = activityLogController.addActivityLog(userId, request);
         assertEquals(expectedResult, actualResult);
     }
 

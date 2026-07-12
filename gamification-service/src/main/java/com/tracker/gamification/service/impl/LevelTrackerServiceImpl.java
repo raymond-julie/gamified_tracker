@@ -69,12 +69,30 @@ public class LevelTrackerServiceImpl implements LevelTrackerService {
         return mapToDto(levelTracker);
     }
 
+    // IDOR fix: userId now passed explicitly from the trusted header, not read off the DTO.
+    // @Override
+    // public LevelTrackerDto save(LevelTrackerRequestDTO dto) {
+    //     boolean created = levelTrackerRepository.insertIfAbsent(dto.userId(), dto.activityId()) == 1;
+    //
+    //     var tracker = levelTrackerRepository
+    //             .findByUserIdAndActivityIdForUpdate(dto.userId(), dto.activityId())
+    //             .orElseThrow(); // guaranteed to exist; row is now locked for the rest of this transaction
+    //
+    //     if (!created) {
+    //         archivePreviousState(tracker);
+    //     }
+    //
+    //     tracker.setTotalXp(tracker.getTotalXp() + dto.xp());
+    //     applyLevel(tracker);
+    //
+    //     return mapToDto(levelTrackerRepository.save(tracker));
+    // }
     @Override
-    public LevelTrackerDto save(LevelTrackerRequestDTO dto) {
-        boolean created = levelTrackerRepository.insertIfAbsent(dto.userId(), dto.activityId()) == 1;
+    public LevelTrackerDto save(Long userId, LevelTrackerRequestDTO dto) {
+        boolean created = levelTrackerRepository.insertIfAbsent(userId, dto.activityId()) == 1;
 
         var tracker = levelTrackerRepository
-                .findByUserIdAndActivityIdForUpdate(dto.userId(), dto.activityId())
+                .findByUserIdAndActivityIdForUpdate(userId, dto.activityId())
                 .orElseThrow(); // guaranteed to exist; row is now locked for the rest of this transaction
 
         if (!created) {

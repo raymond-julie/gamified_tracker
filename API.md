@@ -32,6 +32,8 @@ Tokens are signed HS256 JWTs and carry the user's `role` as a claim. The signing
 
 `JwtFilter` grants an authority derived from the token's `role` claim (`ROLE_USER` / `ROLE_ADMIN`). Admin-only routes are enforced **at the URL level** in `SecurityConfig` (`.requestMatchers(HttpMethod.POST, "/api/activity", "/api/activity/").hasRole("ADMIN")`) rather than with a controller-level `@PreAuthorize` — there's no longer a controller to annotate, since routing is now declarative. An `ADMIN` token succeeds on `POST /api/activity`; any other role gets `403`.
 
+**Caller identity on writes:** the JWT also carries a `userId` claim (the numeric `User.id`, set at register/login). `JwtFilter` reads it and injects a `userId` HTTP header on the request before it's routed downstream — overwriting/normalizing any `userId` header the client sent, so it can't be spoofed. `POST /api/activitylog` and `POST /api/level` derive the acting user from this trusted header rather than from the request body (see those endpoints below); the body no longer accepts a `userId` field at all.
+
 ---
 
 ## API Gateway (port 8080) — public surface
@@ -112,19 +114,18 @@ Create an activity. **Requires `ADMIN` role** — a non-admin token gets `403`.
 ### Activity Log
 
 #### `GET /api/activitylog/{id}`
-Fetch one activity log by its numeric id. Requires auth.
+Fetch one activity log by its numeric id. Requires auth. **Open read by design** — any authenticated user can look up any log by id, not just their own (players can view each other's activity/stats; this is a social feature, not an oversight).
 
 **Response:** `200 OK` (shape below) or `404` if not found.
 
 ---
 
 #### `POST /api/activitylog`
-Records an activity session, computes XP (with a chance of a bonus roll), and forwards the XP to the Gamification Service. Requires auth.
+Records an activity session, computes XP (with a chance of a bonus roll), and forwards the XP to the Gamification Service. Requires auth. **Always writes as the caller** — the acting `userId` is derived server-side from the JWT (via the gateway-injected `userId` header), never from the request body, so one user cannot log activities or grant XP as another user.
 
 **Request body:**
 | Field | Type | Notes |
 |---|---|---|
-| `userId` | Long | |
 | `activityName` | String | must match an existing `Activity.name`, else `404` |
 | `startTime` | ISO-8601 datetime string | |
 | `endTime` | ISO-8601 datetime string | must be after `startTime` |
@@ -149,7 +150,7 @@ Records an activity session, computes XP (with a chance of a bonus roll), and fo
 ---
 
 #### `GET /api/activitylog/user/{id}`
-List all activity logs for a user. Requires auth.
+List all activity logs for a user. Requires auth. **Open read by design** — `{id}` can be any user, not just the caller (see note above).
 
 **Response:** `200 OK`, JSON array of the same shape as the `POST` response above.
 
@@ -161,13 +162,13 @@ List all activity logs for a user. Requires auth.
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `GET` | `/api/level` | authenticated | list every level-tracker row (all users, all activities) |
-| `GET` | `/api/level/{id}` | authenticated | one row by internal id (`404` if missing) |
-| `POST` | `/api/level` | authenticated | create-or-update XP for a user+activity, recalculating level. Normally called internally by the Activity Service after each activity log, not directly by clients |
-| `GET` | `/api/level/user/{userId}` | authenticated | all rows for a given user |
+| `GET` | `/api/level` | authenticated | list every level-tracker row (all users, all activities) — open read |
+| `GET` | `/api/level/{id}` | authenticated | one row by internal id (`404` if missing) — open read, any user's row |
+| `POST` | `/api/level` | authenticated | create-or-update XP for **the caller's own** activity, recalculating level. Normally called internally by the Activity Service after each activity log, not directly by clients |
+| `GET` | `/api/level/user/{userId}` | authenticated | all rows for a given user — open read, `{userId}` can be anyone |
 | `GET` | `/api/level/activity/{activityId}` | authenticated | all rows for a given activity |
 
-Request/response bodies mirror the Gamification Service (`userId`, `activityId`, `level`, `totalXp`, `currentLevelXp`) — see [Gamification Service § Level Tracker](#level-tracker-1) below.
+All reads here are **intentionally open** — any authenticated player can view any other player's level/XP stats (see [Authentication](#authentication) and [Gamification Service § Level Tracker](#level-tracker-1)). `POST` is the one write: the `userId` field has been removed from the request body — the acting user comes from the trusted `userId` header instead, so XP can only ever be granted to the caller. Request/response bodies otherwise mirror the Gamification Service (`activityId`, `level`, `totalXp`, `currentLevelXp`).
 
 ---
 
@@ -209,7 +210,7 @@ Create an activity. Same request/response shape as the Gateway's `POST /api/acti
 Fetch one activity log by id. `200 OK` or `404` `ProblemDetail` (`"Activity log not found: {id}"`).
 
 #### `POST /activitylog/`
-Create an activity log (computes duration + XP bonus, calls Gamification Service). Same request/response shape as the Gateway's `POST /api/activitylog`. `404` `ProblemDetail` if `activityName` doesn't match an existing activity.
+Create an activity log (computes duration + XP bonus, calls Gamification Service). Same request/response shape as the Gateway's `POST /api/activitylog`. `404` `ProblemDetail` if `activityName` doesn't match an existing activity. Reads `userId` from the `userId` request header (required) rather than the body — when called through the Gateway this header is the trusted, JWT-derived value; called directly against `:8081` (bypassing the Gateway, as this dev setup allows), the header is unauthenticated and effectively caller-supplied, since this service has no security layer of its own.
 
 #### `GET /activitylog/user/{id}`
 List all activity logs for a user.
@@ -238,19 +239,18 @@ List every `LevelTracker` row (all users, all activities).
 Fetch one `LevelTracker` by its internal numeric id. `200 OK` or `404` `ProblemDetail` (`"LevelTracker with id: {id} not found"`).
 
 #### `POST /level`
-Create-or-update a user's XP for an activity, recalculating level. This is what `ActivityLogService` (Activity Service) calls internally after each activity log is recorded — not typically called directly by clients.
+Create-or-update a user's XP for an activity, recalculating level. This is what `ActivityLogService` (Activity Service) calls internally after each activity log is recorded — not typically called directly by clients. Reads `userId` from the `userId` request header (required), not the body — same trust caveat as `POST /activitylog/` above: trustworthy through the Gateway/internal Feign call, caller-supplied if hit directly on `:8082`.
 
 **Request body:**
 | Field | Type | Notes |
 |---|---|---|
-| `userId` | Long | |
 | `activityId` | Long | |
 | `xp` | double | XP to add. **Must be ≥ 0** — negative values are rejected with a `400` `ProblemDetail` (`"Invalid request body"`) before reaching the database |
 
 **Response:** `200 OK`, the resulting `LevelTrackerDto` (shape above). Level-up logic: crosses the highest `ActivityLevelThreshold` whose `xpRequired` is ≤ the new total XP for that activity; `currentLevelXp` becomes `totalXp − threshold.xpRequired`.
 
 #### `GET /level/user/{userId}`
-List all `LevelTracker` rows for a given user (one per activity they've logged).
+List all `LevelTracker` rows for a given user (one per activity they've logged). Open read — no ownership check; any caller can pass any `{userId}`.
 
 #### `GET /level/activity/{activityId}`
 List all `LevelTracker` rows for a given activity (one per user who's logged it).
@@ -317,5 +317,6 @@ All previously-tracked issues in this section have been resolved and verified en
 - ~~`JwtUtil` ignoring the `jwt.expiration` config~~ — fixed; confirmed the token's `exp` claim moves when the config value changes.
 - ~~`LevelTrackerService.mapToDto` always returning `totalXp: 0.0`~~ — fixed.
 - ~~Inconsistent error shapes (raw `500`s / generic bodies instead of `ProblemDetail`)~~ — fixed for login failures and negative-`xp` validation.
+- ~~IDOR on writes: `POST /api/activitylog` and `POST /api/level` trusted a client-supplied `userId` in the body, so any authenticated user could log activities or grant XP **as any other user**~~ — fixed. The JWT now carries the numeric `userId`; `JwtFilter` injects it as a trusted `userId` header (overwriting/stripping any client-sent value) before the request is routed downstream; the write DTOs no longer accept `userId` in the body at all, and activity-service forwards the same header on its internal Feign call to gamification-service.
 
-Remaining non-issues, documented for awareness rather than as defects: `createdAt` is always server-set (client-supplied values on create endpoints are accepted but ignored), and any caller can self-register as `ADMIN` (acceptable for a demo app).
+Remaining non-issues, documented for awareness rather than as defects: `createdAt` is always server-set (client-supplied values on create endpoints are accepted but ignored); any caller can self-register as `ADMIN` (acceptable for a demo app); and **reads are intentionally open** — any authenticated user can view any other user's activity logs and level/XP stats (`GET .../{id}`, `GET .../user/{id}`) as a deliberate social/leaderboard-style feature, not an access-control gap. Direct calls to `:8081`/`:8082` bypassing the Gateway are also unauthenticated, since neither service has its own security layer — the `userId` header is only trustworthy when it arrives via the Gateway or the internal Feign call.
