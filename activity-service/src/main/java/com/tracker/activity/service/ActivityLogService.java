@@ -11,5 +11,5 @@ public interface ActivityLogService {
 
     ResponseEntity<List<ActivityLogResponse>> getAllActivityForUser(Long id);
 
-    ResponseEntity<ActivityLogResponse> addActivityLogResponseResponseEntity(ActivityLogRequest addActivityLogRequest);
+    ResponseEntity<ActivityLogResponse> addActivityLogResponseResponseEntity(Long userId, ActivityLogRequest addActivityLogRequest);
 }

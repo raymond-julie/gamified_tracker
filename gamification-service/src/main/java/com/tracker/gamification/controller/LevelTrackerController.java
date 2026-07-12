@@ -26,9 +26,16 @@ public class LevelTrackerController {
         return ResponseEntity.ok(levelTrackerService.findById(id));
     }
 
+    // IDOR fix: userId now comes from the trusted "userId" header (injected by the
+    // gateway, forwarded by activity-service's internal Feign call), not from the body.
+    // @PostMapping
+    // public ResponseEntity<LevelTrackerDto> createLevelTracker(@RequestBody LevelTrackerRequestDTO levelTrackerRequestDTO) {
+    //     return ResponseEntity.ok(levelTrackerService.save(levelTrackerRequestDTO));
+    // }
     @PostMapping
-    public ResponseEntity<LevelTrackerDto> createLevelTracker(@RequestBody LevelTrackerRequestDTO levelTrackerRequestDTO) {
-        return ResponseEntity.ok(levelTrackerService.save(levelTrackerRequestDTO));
+    public ResponseEntity<LevelTrackerDto> createLevelTracker(@RequestHeader("userId") Long userId,
+                                                                @RequestBody LevelTrackerRequestDTO levelTrackerRequestDTO) {
+        return ResponseEntity.ok(levelTrackerService.save(userId, levelTrackerRequestDTO));
     }
 
     @GetMapping("/user/{userId}")

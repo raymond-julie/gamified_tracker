@@ -37,7 +37,7 @@ public class AuthService {
         user.setRole(request.role() != null ? request.role() : Role.USER);
         userRepository.save(user);
 
-        return jwtUtil.generateToken(user.getEmail(), user.getRole());
+        return jwtUtil.generateToken(user.getEmail(), user.getRole(),user.getId());
     }
 
     public String login(LoginRequest req) {
@@ -50,6 +50,6 @@ public class AuthService {
             throw new InvalidCredentialsException();
         }
 
-        return jwtUtil.generateToken(user.getEmail(), user.getRole());
+        return jwtUtil.generateToken(user.getEmail(), user.getRole(),user.getId());
     }
 }

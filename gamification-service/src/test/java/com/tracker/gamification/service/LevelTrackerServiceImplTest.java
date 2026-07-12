@@ -233,7 +233,9 @@ public class LevelTrackerServiceImplTest {
     @DisplayName("save creates new tracker with initial level when no existing tracker")
     void testSaveNewTracker() {
         // Arrange
-        LevelTrackerRequestDTO request = new LevelTrackerRequestDTO(1L, 1L, 100.0);
+        // IDOR fix: userId no longer lives on the DTO — it's a separate trusted argument.
+        // LevelTrackerRequestDTO request = new LevelTrackerRequestDTO(1L, 1L, 100.0);
+        LevelTrackerRequestDTO request = new LevelTrackerRequestDTO(1L, 100.0);
 
         // insertIfAbsent atomically creates the zero-state row when none existed
         LevelTracker freshTracker = LevelTracker.builder()
@@ -267,7 +269,8 @@ public class LevelTrackerServiceImplTest {
                 .thenReturn(savedTracker);
 
         // Act
-        LevelTrackerDto result = levelTrackerService.save(request);
+        // LevelTrackerDto result = levelTrackerService.save(request);
+        LevelTrackerDto result = levelTrackerService.save(1L, request);
 
         // Assert
         assertNotNull(result);
@@ -286,7 +289,8 @@ public class LevelTrackerServiceImplTest {
     @DisplayName("save updates existing tracker, archives previous state, and accumulates XP")
     void testSaveExistingTracker() {
         // Arrange
-        LevelTrackerRequestDTO request = new LevelTrackerRequestDTO(1L, 1L, 50.0);
+        // LevelTrackerRequestDTO request = new LevelTrackerRequestDTO(1L, 1L, 50.0);
+        LevelTrackerRequestDTO request = new LevelTrackerRequestDTO(1L, 50.0);
 
         LevelTracker existingTracker = LevelTracker.builder()
                 .id(1L)
@@ -320,7 +324,8 @@ public class LevelTrackerServiceImplTest {
                 .thenReturn(updatedTracker);
 
         // Act
-        LevelTrackerDto result = levelTrackerService.save(request);
+        // LevelTrackerDto result = levelTrackerService.save(request);
+        LevelTrackerDto result = levelTrackerService.save(1L, request);
 
         // Assert
         assertNotNull(result);
@@ -342,7 +347,8 @@ public class LevelTrackerServiceImplTest {
     @DisplayName("save levels up tracker when threshold is reached")
     void testSaveLevelUp() {
         // Arrange
-        LevelTrackerRequestDTO request = new LevelTrackerRequestDTO(1L, 1L, 300.0);
+        // LevelTrackerRequestDTO request = new LevelTrackerRequestDTO(1L, 1L, 300.0);
+        LevelTrackerRequestDTO request = new LevelTrackerRequestDTO(1L, 300.0);
 
         ActivityLevelThresholdId levelId = ActivityLevelThresholdId.builder()
                 .activityId(1L)
@@ -385,7 +391,8 @@ public class LevelTrackerServiceImplTest {
                 .thenReturn(leveledUpTracker);
 
         // Act
-        LevelTrackerDto result = levelTrackerService.save(request);
+        // LevelTrackerDto result = levelTrackerService.save(request);
+        LevelTrackerDto result = levelTrackerService.save(1L, request);
 
         // Assert
         assertNotNull(result);
@@ -406,7 +413,8 @@ public class LevelTrackerServiceImplTest {
     @DisplayName("save with zero XP creates tracker at level 1")
     void testSaveZeroXp() {
         // Arrange
-        LevelTrackerRequestDTO request = new LevelTrackerRequestDTO(1L, 1L, 0.0);
+        // LevelTrackerRequestDTO request = new LevelTrackerRequestDTO(1L, 1L, 0.0);
+        LevelTrackerRequestDTO request = new LevelTrackerRequestDTO(1L, 0.0);
 
         LevelTracker freshTracker = LevelTracker.builder()
                 .id(1L)
@@ -439,7 +447,8 @@ public class LevelTrackerServiceImplTest {
                 .thenReturn(savedTracker);
 
         // Act
-        LevelTrackerDto result = levelTrackerService.save(request);
+        // LevelTrackerDto result = levelTrackerService.save(request);
+        LevelTrackerDto result = levelTrackerService.save(1L, request);
 
         // Assert
         assertNotNull(result);

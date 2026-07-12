@@ -6,6 +6,29 @@ spring:
     ansi:
       enabled: ALWAYS
 
+  cloud:
+    gateway:
+      server:
+        webmvc:
+          routes:
+            - id: activity
+              uri: lb://activity-service
+              predicates:
+                - Path=/api/activity/**,/api/activitylog/**
+              filters:
+                # activity-service's list/create endpoints are mapped at "/" and Spring 6 no
+                # longer treats "/activity" and "/activity/" as equivalent, so the bare base
+                # path needs an explicit trailing slash. Two mutually-exclusive rewrites
+                # (each anchored, so only one ever matches a given request) replace StripPrefix.
+                - RewritePath=^/api/(activity|activitylog)/?$, /$1/
+                - RewritePath=^/api/(.*)$, /$1
+            - id: gamification
+              uri: lb://gamification-service
+              predicates:
+                - Path=/api/level/**,/api/threshold/**
+              filters:
+                - StripPrefix=1
+
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/tracker_db}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
