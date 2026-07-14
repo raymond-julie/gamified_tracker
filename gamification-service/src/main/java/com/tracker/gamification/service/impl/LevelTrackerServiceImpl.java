@@ -2,13 +2,16 @@ package com.tracker.gamification.service.impl;
 
 import com.tracker.gamification.dao.LevelTracker;
 import com.tracker.gamification.dao.LevelTrackerArchive;
+import com.tracker.gamification.dao.LevelUpEvent;
 import com.tracker.gamification.domain.LevelOutcome;
 import com.tracker.gamification.dto.LevelTrackerDto;
 import com.tracker.gamification.dto.LevelTrackerRequestDTO;
 import com.tracker.gamification.repository.ActivityLevelThresholdRepository;
 import com.tracker.gamification.repository.LevelTrackerArchiveRepository;
 import com.tracker.gamification.repository.LevelTrackerRepository;
+import com.tracker.gamification.repository.LevelUpEventRepository;
 import com.tracker.gamification.service.LevelTrackerService;
+import lombok.AllArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +20,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+@AllArgsConstructor
 @Service
 @Transactional
 public class LevelTrackerServiceImpl implements LevelTrackerService {
@@ -24,14 +28,7 @@ public class LevelTrackerServiceImpl implements LevelTrackerService {
     private final LevelTrackerRepository levelTrackerRepository;
     private final ActivityLevelThresholdRepository activityLevelThresholdRepository;
     private final LevelTrackerArchiveRepository levelTrackerArchiveRepository;
-
-    public LevelTrackerServiceImpl(LevelTrackerRepository levelTrackerRepository,
-                                   ActivityLevelThresholdRepository activityLevelThresholdRepository,
-                                   LevelTrackerArchiveRepository levelTrackerArchiveRepository) {
-        this.levelTrackerRepository = levelTrackerRepository;
-        this.activityLevelThresholdRepository = activityLevelThresholdRepository;
-        this.levelTrackerArchiveRepository = levelTrackerArchiveRepository;
-    }
+    private final LevelUpEventRepository levelUpEventRepository;
 
     @Override
     public List<LevelTrackerDto> findByUserId(Long userId) {
@@ -99,10 +96,26 @@ public class LevelTrackerServiceImpl implements LevelTrackerService {
             archivePreviousState(tracker);
         }
 
+        Integer oldLevel = tracker.getLevel();
+
         tracker.setTotalXp(tracker.getTotalXp() + dto.xp());
         boolean leveledUp = applyLevel(tracker);
 
         var saved = levelTrackerRepository.save(tracker);
+
+        if (leveledUp) {
+            levelUpEventRepository.save(LevelUpEvent.builder()
+                    .userId(tracker.getUserId())
+                    .activityId(tracker.getActivityId())
+                    .oldLevel(oldLevel)
+                    .newLevel(saved.getLevel())
+                    .currentLevelXp(saved.getCurrentLevelXp())
+                    .totalXp(saved.getTotalXp())
+                    .createdAt(LocalDateTime.now())
+                    .read(false)
+                    .build());
+        }
+
         return mapToDto(saved, leveledUp);
     }
 
