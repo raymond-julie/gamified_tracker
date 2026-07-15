@@ -90,11 +90,15 @@ public class LevelTrackerServiceImplTest {
         // Act
         levelTrackerService.save(1L, request);
 
-        // Assert — a level-up event is emitted, carrying the caller + new level
+        // Assert — a level-up event is emitted, carrying the caller, old/new level, XP, and unread state
         verify(levelUpEventRepository).save(argThat((LevelUpEvent e) ->
                 e.getUserId().equals(1L)
                         && e.getActivityId().equals(1L)
-                        && e.getNewLevel() == 2));
+                        && e.getOldLevel() == null // freshTracker had no level set yet
+                        && e.getNewLevel() == 2
+                        && e.getTotalXp() == 300.0
+                        && e.getCurrentLevelXp() == 100.0
+                        && !e.isRead()));
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.tracker.gateway.auth;
 
+import com.tracker.gateway.config.AuthRateLimitFilter;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -25,6 +26,15 @@ public class AuthControllerTest {
 
     @MockBean
     private JwtUtil jwtUtil;
+
+    // AuthRateLimitFilter is a @Component Filter, so @WebMvcTest's web-layer slicing
+    // auto-detects and tries to construct it even though addFilters=false keeps it from
+    // actually running requests. Its real constructor needs a ProxyManager<String> bean
+    // (backed by Redis), which isn't part of this slice - mock the filter bean itself
+    // rather than its Bucket4j dependencies, mirroring how JwtFilter's only dependency
+    // (JwtUtil, above) is already satisfied.
+    @MockBean
+    private AuthRateLimitFilter authRateLimitFilter;
 
     @Test
     void testRegister() throws Exception {
