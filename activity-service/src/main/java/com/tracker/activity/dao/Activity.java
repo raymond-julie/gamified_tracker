@@ -1,4 +1,4 @@
-package com.tracker.activity.dao;
+private static final double DEFAULT_STUDY_XP = 1.5; private static final double DEFAULT_GAMING_XP = 0.8;package com.tracker.activity.dao;
 
 
 import jakarta.persistence.*;
@@ -27,9 +27,9 @@ public class Activity {
     // STUDY, WORK, GAMING, CHORES
 
     // Gamification config
-    public double xpMultiplier; // e.g. Study = 1.5, Gaming = 0.8
+    public double xpMultiplier; // e.g. Study = DEFAULT_STUDY_XP, Gaming = DEFAULT_GAMING_XP
 
-    public boolean active; // soft delete / enable-disable
+    public boolean isActive; // soft delete / enable-disable
 
     // Optional metadata
     public String description;
@@ -47,9 +47,9 @@ public class Activity {
      * {@code ActivityLogResponse}.
      */
     public double effectiveXpMultiplier() {
-        if (xpMultiplier > 0) {
+        if (xpMultiplier > 0.0) {
             return xpMultiplier;
         }
-        return category != null ? category.baseXpMultiplier() : Category.OTHER.baseXpMultiplier();
+        return (category != null) ? category.baseXpMultiplier() : Category.OTHER.baseXpMultiplier();
     }
 }
